@@ -12,7 +12,7 @@ func (e errZNodeInvalid) Error() string {
 
 var (
 	errEmptyURI      = errZNodeInvalid{"empty uri"}
-	errInvalidScheme = errZNodeInvalid{fmt.Sprintf("path scheme must be %v", _zkScheme)}
+	errInvalidScheme = errZNodeInvalid{fmt.Sprintf("scheme must be %v", _zkScheme)}
 	errEnsembleEmpty = errZNodeInvalid{"ensemble name is empty"}
 	errMissingPath   = errZNodeInvalid{"missing znode path from uri"}
 )
