@@ -6,9 +6,9 @@ import (
 	"log"
 	"os"
 	"time"
-
-	"go.uber.org/atomic"
 )
+
+const _lockdownFile = "/tmp/lockdown"
 
 func main() {
 	if err := run(); err != nil {
@@ -23,17 +23,24 @@ func run() error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	lockdown := atomic.NewBool(false)
+	// this is the channel we will use to block on a lockdown condition
 	lockdownC := make(chan struct{})
-
-	go lockdownSignal(lockdown, lockdownC)
+	// run a routine that its only purpose is to send a signal to
+	// the channel based on some condition of our choosing
+	go lockdownSignal(lockdownC)
 
 	for {
+		// Do work.
 		fmt.Println("Hello im a thing")
 
 		select {
 		case <-time.After(time.Second * 3):
-			// does this mean the context wont be called?
+			// Block on the lockdown condition
+			//
+			// Does this mean the context wont be called?
+			//
+			// This also means we add the time inside the signal loop
+			// 	that might be longer than we want...
 			<-lockdownC
 		case <-ctx.Done():
 			return ctx.Err()
@@ -41,11 +48,11 @@ func run() error {
 	}
 }
 
-func lockdownSignal(lockdown *atomic.Bool, lockdownC chan struct{}) {
+func lockdownSignal(lockdownC chan struct{}) {
 	for {
-		checkLockdownCondition(lockdown)
-
-		if !lockdown.Load() {
+		// In our case we just do a boolean on some condition
+		if !isLockdownCondition() {
+			// if we are not under lockdown send signal
 			lockdownC <- struct{}{}
 		}
 
@@ -55,10 +62,12 @@ func lockdownSignal(lockdown *atomic.Bool, lockdownC chan struct{}) {
 	}
 }
 
-func checkLockdownCondition(lockdown *atomic.Bool) {
-	if _, err := os.Stat("/tmp/lockdown"); os.IsNotExist(err) {
-		lockdown.Store(false)
-	} else {
-		lockdown.Store(true)
+func isLockdownCondition() bool {
+	if _, err := os.Stat(_lockdownFile); os.IsNotExist(err) {
+		return false
+	} else if err != nil {
+		// demo code so we just bail
+		log.Fatal(err)
 	}
+	return true
 }
